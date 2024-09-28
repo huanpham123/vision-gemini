@@ -3,91 +3,96 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chụp Hình và Phân Tích</title>
+    <title>Camera Capture</title>
     <style>
         body {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            margin: 0;
             height: 100vh;
-            font-family: Arial, sans-serif;
             background-color: #f0f0f0;
+            margin: 0;
         }
-
-        video {
-            width: 100%;
-            max-width: 640px;
+        #camera {
+            width: 90%;
+            max-width: 600px;
+            height: auto;
             border: 1px solid #ccc;
-            border-radius: 5px;
+            background-color: #000;
         }
-
         button {
             margin-top: 20px;
             padding: 10px 20px;
             font-size: 16px;
-            background-color: #007BFF;
-            color: white;
-            border: none;
-            border-radius: 5px;
             cursor: pointer;
         }
-
-        button:hover {
-            background-color: #0056b3;
-        }
-
         #response {
             margin-top: 20px;
-            padding: 15px;
-            background-color: #fff;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            max-width: 640px;
-            width: 100%;
+            text-align: center;
         }
     </style>
 </head>
 <body>
     <h1>Chụp Hình và Phân Tích</h1>
-    <video id="video" autoplay></video>
-    <button id="snap">Chụp Hình</button>
-    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+    <video id="camera" autoplay></video>
+    <button id="capture">Chụp Ảnh</button>
     <div id="response"></div>
 
     <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const snapButton = document.getElementById('snap');
+        const video = document.getElementById('camera');
+        const canvas = document.createElement('canvas');
         const responseDiv = document.getElementById('response');
 
-        // Mở camera
+        // Khởi động camera
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(stream => {
                 video.srcObject = stream;
             })
-            .catch(err => console.error("Lỗi truy cập camera: ", err));
+            .catch(err => {
+                console.error("Lỗi truy cập camera: ", err);
+            });
 
-        // Chụp hình và gửi yêu cầu
-        snapButton.addEventListener('click', () => {
+        // Chụp ảnh
+        document.getElementById('capture').addEventListener('click', () => {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
             const context = canvas.getContext('2d');
-            context.drawImage(video, 0, 0, 640, 480);
-            const imageData = canvas.toDataURL('image/jpeg');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-            fetch('/analyze', {
+            // Lưu hình ảnh vào server và lấy URL
+            const imageData = canvas.toDataURL('image/jpeg');
+            sendImage(imageData);
+        });
+
+        function sendImage(imageData) {
+            // Tạo một file tạm thời trên server
+            fetch('/upload', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded'
+                    'Content-Type': 'application/json',
                 },
-                body: `image=${encodeURIComponent(imageData)}`
+                body: JSON.stringify({ image: imageData }),
             })
             .then(response => response.json())
             .then(data => {
-                responseDiv.innerHTML = data.response;
+                // Gửi URL của hình ảnh đến API phân tích
+                return fetch('/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ image_url: data.image_url }),
+                });
             })
-            .catch(error => console.error("Có lỗi xảy ra: ", error));
-        });
+            .then(response => response.json())
+            .then(data => {
+                responseDiv.innerText = data.response;
+            })
+            .catch(err => {
+                console.error("Lỗi gửi hình ảnh: ", err);
+            });
+        }
     </script>
 </body>
 </html>
