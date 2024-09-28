@@ -1,96 +1,72 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Camera Capture</title>
+    <title>Camera App</title>
     <style>
-        body {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            background-color: #f0f0f0;
-            margin: 0;
-        }
-        #camera {
-            width: 90%;
-            max-width: 600px;
-            height: auto;
-            border: 1px solid #ccc;
-            background-color: #000;
-        }
-        button {
-            margin-top: 20px;
-            padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-        }
-        #response {
-            margin-top: 20px;
-            text-align: center;
-        }
+        body { display: flex; flex-direction: column; align-items: center; }
+        video { width: 100%; max-width: 600px; }
+        button { margin-top: 20px; }
+        #response { margin-top: 20px; }
     </style>
 </head>
 <body>
-    <h1>Chụp Hình và Phân Tích</h1>
-    <video id="camera" autoplay></video>
-    <button id="capture">Chụp Ảnh</button>
+    <h1>Chụp Ảnh và Phân Tích</h1>
+    <video id="video" autoplay></video>
+    <button id="snap">Chụp Ảnh</button>
+    <canvas id="canvas" style="display:none;"></canvas>
     <div id="response"></div>
 
     <script>
-        const video = document.getElementById('camera');
-        const canvas = document.createElement('canvas');
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const context = canvas.getContext('2d');
         const responseDiv = document.getElementById('response');
 
-        // Khởi động camera
+        // Lấy luồng camera
         navigator.mediaDevices.getUserMedia({ video: true })
             .then(stream => {
                 video.srcObject = stream;
             })
             .catch(err => {
-                console.error("Lỗi truy cập camera: ", err);
+                console.error("Lỗi truy cập camera: " + err);
             });
 
-        // Chụp ảnh
-        document.getElementById('capture').addEventListener('click', () => {
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            const context = canvas.getContext('2d');
+        document.getElementById('snap').addEventListener('click', () => {
             context.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-            // Lưu hình ảnh vào server và lấy URL
             const imageData = canvas.toDataURL('image/jpeg');
-            sendImage(imageData);
-        });
 
-        function sendImage(imageData) {
-            // Tạo một file tạm thời trên server
             fetch('/upload', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ image: imageData }),
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: imageData })
             })
             .then(response => response.json())
             .then(data => {
-                // Gửi URL của hình ảnh đến API phân tích
-                return fetch('/analyze', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ image_url: data.image_url }),
-                });
-            })
-            .then(response => response.json())
-            .then(data => {
-                responseDiv.innerText = data.response;
+                if (data.image_url) {
+                    analyzeImage(data.image_url);
+                } else {
+                    responseDiv.innerHTML = "Lỗi: " + data.error;
+                }
             })
             .catch(err => {
-                console.error("Lỗi gửi hình ảnh: ", err);
+                console.error("Lỗi khi gửi hình ảnh: " + err);
+            });
+        });
+
+        function analyzeImage(imageUrl) {
+            fetch('/analyze', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image_url: imageUrl })
+            })
+            .then(response => response.json())
+            .then(data => {
+                responseDiv.innerHTML = data.response;
+            })
+            .catch(err => {
+                console.error("Lỗi khi phân tích hình ảnh: " + err);
             });
         }
     </script>
