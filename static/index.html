@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chụp Hình và Phân Tích</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 0;
+            height: 100vh;
+            font-family: Arial, sans-serif;
+            background-color: #f0f0f0;
+        }
+
+        video {
+            width: 100%;
+            max-width: 640px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #response {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #fff;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            max-width: 640px;
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chụp Hình và Phân Tích</h1>
+    <video id="video" autoplay></video>
+    <button id="snap">Chụp Hình</button>
+    <canvas id="canvas" width="640" height="480" style="display:none;"></canvas>
+    <div id="response"></div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const snapButton = document.getElementById('snap');
+        const responseDiv = document.getElementById('response');
+
+        // Mở camera
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => {
+                video.srcObject = stream;
+            })
+            .catch(err => console.error("Lỗi truy cập camera: ", err));
+
+        // Chụp hình và gửi yêu cầu
+        snapButton.addEventListener('click', () => {
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, 640, 480);
+            const imageData = canvas.toDataURL('image/jpeg');
+
+            fetch('/analyze', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `image=${encodeURIComponent(imageData)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                responseDiv.innerHTML = data.response;
+            })
+            .catch(error => console.error("Có lỗi xảy ra: ", error));
+        });
+    </script>
+</body>
+</html>
