@@ -11,31 +11,34 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload():
-    image_data = request.json['image']
-    header, encoded = image_data.split(',', 1)
-    decoded_image = base64.b64decode(encoded)
+    try:
+        image_data = request.json['image']
+        header, encoded = image_data.split(',', 1)
+        decoded_image = base64.b64decode(encoded)
 
-    # Tạo thư mục lưu trữ nếu chưa tồn tại
-    os.makedirs('static/images', exist_ok=True)
+        # Tạo thư mục lưu trữ nếu chưa tồn tại
+        os.makedirs('static/images', exist_ok=True)
 
-    # Lưu hình ảnh
-    image_path = 'static/images/captured_image.jpg'
-    with open(image_path, 'wb') as f:
-        f.write(decoded_image)
+        # Lưu hình ảnh
+        image_path = 'static/images/captured_image.jpg'
+        with open(image_path, 'wb') as f:
+            f.write(decoded_image)
 
-    # Trả về URL của ảnh
-    image_url = f'/{image_path}'
-    return jsonify({'image_url': image_url})
+        # Trả về URL của ảnh
+        image_url = f'/{image_path}'
+        return jsonify({'image_url': image_url})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    # Nhận URL hình ảnh từ client
-    image_url = request.json['image_url']
-    
-    # Gửi URL đến API phân tích
-    api_url = f'https://deku-rest-api.gleeze.com/gemini?prompt=describe%20this%20photo&url={image_url}'
-
     try:
+        # Nhận URL hình ảnh từ client
+        image_url = request.json['image_url']
+
+        # Gửi URL đến API phân tích
+        api_url = f'https://deku-rest-api.gleeze.com/gemini?prompt=describe%20this%20photo&url={image_url}'
+
         response = requests.get(api_url)
         result = response.json()
 
