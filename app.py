@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 import requests
 import base64
+import os
 
 app = Flask(__name__)
 
@@ -8,24 +9,34 @@ app = Flask(__name__)
 def index():
     return render_template('index.html')
 
-@app.route('/analyze', methods=['POST'])
-def analyze():
-    image_data = request.form['image']
-    # Giải mã dữ liệu hình ảnh
+@app.route('/upload', methods=['POST'])
+def upload():
+    image_data = request.json['image']
     header, encoded = image_data.split(',', 1)
     decoded_image = base64.b64decode(encoded)
-    
-    # Lưu hình ảnh vào file tạm thời
-    with open('temp_image.jpg', 'wb') as f:
+
+    # Tạo thư mục lưu trữ nếu chưa tồn tại
+    os.makedirs('static/images', exist_ok=True)
+
+    # Lưu hình ảnh
+    image_path = 'static/images/captured_image.jpg'
+    with open(image_path, 'wb') as f:
         f.write(decoded_image)
 
-    # Gửi hình ảnh đến API
-    api_url = 'https://deku-rest-api.gleeze.com/gemini?prompt=describe%20this%20photo&url=https://i.imgur.com/SmVaQ8D.jpeg'
+    # Trả về URL của ảnh
+    image_url = f'/{image_path}'
+    return jsonify({'image_url': image_url})
+
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    # Nhận URL hình ảnh từ client
+    image_url = request.json['image_url']
     
-    # Gửi yêu cầu đến API
+    # Gửi URL đến API phân tích
+    api_url = f'https://deku-rest-api.gleeze.com/gemini?prompt=describe%20this%20photo&url={image_url}'
+
     try:
-        files = {'file': open('temp_image.jpg', 'rb')}
-        response = requests.post(api_url, files=files)
+        response = requests.get(api_url)
         result = response.json()
 
         if 'result' in result and 'data' in result['result']:
